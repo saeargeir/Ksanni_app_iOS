@@ -30,5 +30,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "SkanniApp"
-include(":app")
+rootProject.name = "KsanniApp"
+include(":androidApp")
+include(":shared")
