@@ -4,19 +4,56 @@ import android.util.Log
 import java.util.*
 
 /**
- * International invoice parsing utilities for multi-currency and multi-language support
- * Supports invoices from Iceland, Nordic countries, EU, and other international formats
+ * International invoice parsing utilities for multi-currency and multi-language support.
+ * 
+ * This parser handles invoices and receipts from various countries and regions, with
+ * special emphasis on Icelandic businesses while supporting Nordic countries, EU, and
+ * other international formats. It automatically detects currencies, languages, and
+ * appropriate VAT/tax structures.
+ * 
+ * Supported regions and currencies:
+ * - Iceland (ISK) - Primary focus with 24%, 11%, 0% VAT rates
+ * - Nordic countries (DKK, NOK, SEK) - MOMS/MVA tax systems
+ * - European Union (EUR) - Various VAT rates
+ * - International (USD, GBP, CHF) - Sales tax and VAT systems
+ * 
+ * Features:
+ * - Automatic currency detection from text patterns
+ * - Multi-language VAT/tax term recognition
+ * - Multiple VAT rate handling (mixed rate invoices)
+ * - Robust number parsing for different regional formats
+ * - Language detection for appropriate parsing rules
+ * 
+ * @since 1.0.29
+ * @author SkanniApp Team
  */
 object InternationalInvoiceParser {
     
     private const val TAG = "InternationalParser"
     
+    /**
+     * Represents a monetary amount with currency and confidence information.
+     * 
+     * @property amount The numeric value of the amount
+     * @property currency The ISO currency code (e.g., "ISK", "EUR", "USD")
+     * @property confidence Parser confidence in this result (0.0-1.0)
+     */
     data class CurrencyAmount(
         val amount: Double,
         val currency: String,
         val confidence: Float
     )
     
+    /**
+     * Complete parsing result for an international invoice/receipt.
+     * 
+     * @property subtotal Pre-tax amount (if detected)
+     * @property tax Total tax/VAT amount (if detected)
+     * @property total Final total amount including all taxes
+     * @property rateMap Map of tax rates to their corresponding amounts
+     * @property detectedCountry Detected country code (ISO 3166-1 alpha-2)
+     * @property detectedLanguage Detected language code (ISO 639-1)
+     */
     data class InternationalVatResult(
         val subtotal: CurrencyAmount?,
         val tax: CurrencyAmount?, 
@@ -78,7 +115,31 @@ object InternationalInvoiceParser {
     )
     
     /**
-     * Detect the most likely currency from the text
+     * Detect the most likely currency from invoice text content.
+     * 
+     * This function analyzes the text for currency indicators such as symbols,
+     * codes, and currency names in multiple languages. It uses a scoring system
+     * to determine the most probable currency based on frequency and context.
+     * 
+     * Supported currencies and their indicators:
+     * - ISK: "kr", "krónur", "króna", "ISK"
+     * - EUR: "€", "EUR", "euro", "euros"  
+     * - USD: "$", "USD", "dollar", "dollars"
+     * - GBP: "£", "GBP", "pound", "pounds"
+     * - DKK, NOK, SEK: Various "kr" patterns with context
+     * - CHF: "CHF", "franc", "francs"
+     * 
+     * @param text The invoice text to analyze for currency indicators
+     * @return ISO currency code (e.g., "ISK", "EUR") or "EUR" as default
+     * 
+     * Example:
+     * ```kotlin
+     * val currency = detectCurrency("Total: 1.234 kr VSK 24%")
+     * // Returns "ISK"
+     * 
+     * val currency2 = detectCurrency("Amount: 123.45 €")
+     * // Returns "EUR"
+     * ```
      */
     fun detectCurrency(text: String): String {
         val lowerText = text.lowercase()

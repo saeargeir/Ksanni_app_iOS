@@ -6,14 +6,57 @@ import io.github.saeargeir.skanniapp.OcrUtil
 import java.io.File
 
 /**
- * Hybrid OCR engine that combines ML Kit and Tesseract for optimal Icelandic text recognition
+ * Hybrid OCR engine that combines Google ML Kit and Tesseract OCR for optimal Icelandic text recognition.
+ * 
+ * This utility addresses the specific challenges of processing Icelandic receipts and invoices by
+ * intelligently selecting between ML Kit (fast, cloud-based) and Tesseract (accurate, on-device)
+ * based on text characteristics, confidence scores, and language detection.
+ * 
+ * Key features:
+ * - Automatic engine selection based on content analysis
+ * - Enhanced Icelandic character recognition (þ, æ, ö, ð)
+ * - Fallback mechanisms for robustness
+ * - Performance tracking and optimization
+ * - Support for Icelandic number formatting (1.234,56)
+ * 
+ * Usage:
+ * ```kotlin
+ * HybridOcrUtil.recognizeTextHybrid(context, imageFile) { result ->
+ *     if (result.success) {
+ *         processText(result.text)
+ *         Log.d(TAG, "Used ${result.engine} in ${result.processingTimeMs}ms")
+ *     }
+ * }
+ * ```
+ * 
+ * @since 1.0.29
+ * @author SkanniApp Team
  */
 object HybridOcrUtil {
     
     private const val TAG = "HybridOcr"
     
+    /**
+     * Available OCR engines for text recognition.
+     * 
+     * @property ML_KIT Google ML Kit - fast, good for general text
+     * @property TESSERACT Tesseract OCR - accurate, optimized for Icelandic
+     * @property AUTO Intelligent selection based on content analysis
+     */
     enum class OcrEngine { ML_KIT, TESSERACT, AUTO }
     
+    /**
+     * Result container for hybrid OCR processing operations.
+     * 
+     * @property text The recognized text from the selected OCR engine
+     * @property confidence Recognition confidence score (0.0-1.0) from the selected engine
+     * @property engine The OCR engine that produced this result
+     * @property processingTimeMs Total processing time in milliseconds
+     * @property mlKitResult Raw text result from ML Kit (if available)
+     * @property tesseractResult Raw text result from Tesseract (if available)
+     * @property success Whether the OCR operation completed successfully
+     * @property error Error message if the operation failed
+     */
     data class HybridOcrResult(
         val text: String,
         val confidence: Float,
@@ -26,7 +69,57 @@ object HybridOcrUtil {
     )
     
     /**
-     * Main OCR function with automatic language detection and preprocessing
+     * Main OCR function with automatic language detection and image preprocessing.
+     * 
+     * This function provides intelligent OCR processing by analyzing the image content
+     * and selecting the most appropriate engine based on detected characteristics.
+     * For Icelandic text, it prioritizes Tesseract when available and confident.
+     * For general text or when Tesseract fails, it falls back to ML Kit.
+     * 
+     * The function supports various preprocessing options to enhance OCR accuracy:
+     * - Noise reduction and contrast enhancement
+     * - Text area detection and cropping
+     * - Skew correction for better text alignment
+     * 
+     * Processing modes:
+     * - AUTO: Intelligent selection based on content analysis (recommended)
+     * - ML_KIT: Google ML Kit only (fast, good for clean text)
+     * - TESSERACT: Tesseract only (accurate for Icelandic, slower)
+     * 
+     * @param context Android application context for accessing assets and resources
+     * @param imageFile File object pointing to the image to be processed
+     * @param preferredEngine OCR engine preference (AUTO recommended for best results)
+     * @param usePreprocessing Enable image preprocessing for better OCR accuracy
+     * @param aggressivePreprocessing Apply more intensive preprocessing (slower but more accurate)
+     * @param onResult Callback function that receives the OCR result asynchronously
+     * 
+     * @throws IllegalArgumentException if imageFile doesn't exist or isn't readable
+     * 
+     * Example usage:
+     * ```kotlin
+     * val receiptImage = File(imagePath)
+     * HybridOcrUtil.recognizeTextHybrid(
+     *     context = this,
+     *     imageFile = receiptImage,
+     *     preferredEngine = OcrEngine.AUTO,
+     *     usePreprocessing = true
+     * ) { result ->
+     *     when {
+     *         result.success -> {
+     *             Log.i(TAG, "OCR successful with ${result.engine}")
+     *             Log.i(TAG, "Confidence: ${result.confidence}")
+     *             Log.i(TAG, "Processing time: ${result.processingTimeMs}ms")
+     *             processRecognizedText(result.text)
+     *         }
+     *         else -> {
+     *             Log.e(TAG, "OCR failed: ${result.error}")
+     *             handleOcrError(result.error)
+     *         }
+     *     }
+     * }
+     * ```
+     * 
+     * @since 1.0.29
      */
     fun recognizeTextHybrid(
         context: Context,
